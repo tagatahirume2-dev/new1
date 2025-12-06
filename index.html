@@ -1,0 +1,377 @@
+<!doctype html>
+<html lang="ja">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>アンケート — Ideal Survey</title>
+  <meta name="description" content="シンプルで見た目にこだわったブラックテーマのアンケートサイト（シングルファイル）。回答はローカルに保存・CSVでダウンロードできます。" />
+  <style>
+    :root{
+      --bg:#0b0b0c;
+      --card:#0f1113;
+      --muted:#9aa3ad;
+      --accent:#7cfc00;
+      --glass: rgba(255,255,255,0.03);
+      --radius:16px;
+      --maxw:900px;
+      font-family: Inter, ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial;
+    }
+    *{box-sizing:border-box}
+    html,body{height:100%}
+    body{
+      margin:0;
+      background: radial-gradient(1200px 600px at 10% 10%, rgba(124,252,0,0.03), transparent),
+                  linear-gradient(180deg, rgba(255,255,255,0.02), transparent 30%),
+                  var(--bg);
+      color:#e6eef6;
+      -webkit-font-smoothing:antialiased;
+      -moz-osx-font-smoothing:grayscale;
+      padding:40px 20px;
+      display:flex;
+      align-items:center;
+      justify-content:center;
+      gap:20px;
+    }
+    .container{
+      width:100%;
+      max-width:var(--maxw);
+      display:grid;
+      grid-template-columns: 1fr 380px;
+      gap:20px;
+      align-items:start;
+    }
+    @media (max-width:980px){
+      .container{grid-template-columns:1fr; padding-bottom:40px}
+    }
+    header{display:flex;align-items:center;gap:16px;margin-bottom:12px}
+    .logo{
+      width:56px;height:56px;border-radius:12px;background:linear-gradient(135deg,#13241a,#1b2b23);display:flex;align-items:center;justify-content:center;box-shadow:0 4px 20px rgba(0,0,0,0.6) inset, 0 6px 30px rgba(0,0,0,0.6);
+      border:1px solid rgba(124,252,0,0.08)
+    }
+    .logo span{font-weight:700;color:var(--accent);font-size:20px}
+    h1{margin:0;font-size:20px}
+    p.lead{margin:6px 0 0;color:var(--muted);font-size:13px}
+
+    /* Card */
+    .card{
+      background:linear-gradient(180deg, rgba(255,255,255,0.02), rgba(255,255,255,0.01));
+      border-radius:var(--radius);
+      padding:20px;
+      border:1px solid rgba(255,255,255,0.04);
+      box-shadow: 0 6px 30px rgba(2,6,8,0.6);
+    }
+
+    form .field{margin-bottom:14px}
+    label{display:block;font-weight:600;margin-bottom:6px;font-size:13px}
+    input[type="text"], input[type="email"], select, textarea{
+      width:100%;padding:10px 12px;border-radius:10px;background:var(--glass);border:1px solid rgba(255,255,255,0.03);color:inherit;font-size:14px;outline:none
+    }
+    textarea{min-height:90px;resize:vertical}
+    .row{display:flex;gap:12px}
+    .row .col{flex:1}
+
+    .muted{color:var(--muted);font-size:13px}
+    .btn{
+      background:linear-gradient(90deg,var(--accent),#4ff08a);
+      color:#07110b;border:none;padding:10px 14px;border-radius:12px;font-weight:700;cursor:pointer;box-shadow:0 6px 18px rgba(124,252,0,0.06);
+    }
+    .btn.secondary{background:transparent;color:var(--accent);border:1px solid rgba(124,252,0,0.12)}
+
+    .sidebar{
+      position:sticky;top:40px;height:fit-content;align-self:start
+    }
+    .small{font-size:12px}
+    .progress{
+      height:10px;background:rgba(255,255,255,0.03);border-radius:999px;overflow:hidden;margin-bottom:12px
+    }
+    .progress > i{display:block;height:100%;background:linear-gradient(90deg,var(--accent),#3fe16f);width:0%}
+
+    /* Results */
+    .result-list{display:flex;flex-direction:column;gap:10px}
+    .result-item{display:flex;justify-content:space-between;align-items:center;padding:8px;border-radius:10px;background:rgba(255,255,255,0.02);font-size:13px}
+
+    footer{margin-top:18px;color:var(--muted);font-size:13px}
+    .tiny{font-size:12px;color:var(--muted)}
+
+    /* Simple bar chart */
+    .chart{width:100%;height:160px;border-radius:12px;padding:12px;background:linear-gradient(180deg, rgba(255,255,255,0.01), transparent)}
+    .bar-wrap{display:flex;gap:8px;align-items:end;height:100%}
+    .bar{flex:1;border-radius:8px;display:flex;align-items:flex-end;justify-content:center;padding:4px 6px;font-weight:700}
+  </style>
+</head>
+<body>
+  <main class="container">
+    <section>
+      <div class="card">
+        <header>
+          <div class="logo"><span>AS</span></div>
+          <div>
+            <h1>アンケート — あなたの声をください</h1>
+            <p class="lead">シンプルでレスポンシブなアンケート。回答はローカルに保存され、CSVでエクスポートできます。</p>
+          </div>
+        </header>
+
+        <form id="surveyForm">
+          <div class="progress" aria-hidden><i id="progBar"></i></div>
+
+          <div class="field">
+            <label for="name">お名前（任意）</label>
+            <input id="name" name="name" type="text" placeholder="例：山田 太郎" />
+            <div class="tiny muted">匿名での送信も可能です。</div>
+          </div>
+
+          <div class="field">
+            <label for="email">メール（任意）</label>
+            <input id="email" name="email" type="email" placeholder="you@example.com" />
+          </div>
+
+          <div class="field">
+            <label for="age">年齢層</label>
+            <select id="age" name="age">
+              <option value="">選んでください</option>
+              <option>〜17</option>
+              <option>18-24</option>
+              <option>25-34</option>
+              <option>35-44</option>
+              <option>45+</option>
+            </select>
+          </div>
+
+          <div class="field">
+            <label>当サイトの満足度</label>
+            <div class="row">
+              <label class="col"><input type="radio" name="satisfaction" value="5"> 5（とても満足）</label>
+              <label class="col"><input type="radio" name="satisfaction" value="4"> 4</label>
+              <label class="col"><input type="radio" name="satisfaction" value="3"> 3</label>
+              <label class="col"><input type="radio" name="satisfaction" value="2"> 2</label>
+              <label class="col"><input type="radio" name="satisfaction" value="1"> 1（不満）</label>
+            </div>
+          </div>
+
+          <div class="field">
+            <label for="features">改善してほしいこと（複数可）</label>
+            <div class="row">
+              <label class="col"><input type="checkbox" name="features" value="UI"> UI
+              </label>
+              <label class="col"><input type="checkbox" name="features" value="速度"> 速度
+              </label>
+              <label class="col"><input type="checkbox" name="features" value="機能"> 機能
+              </label>
+            </div>
+          </div>
+
+          <div class="field">
+            <label for="comment">ご意見・ご要望（任意）</label>
+            <textarea id="comment" name="comment" placeholder="ご自由にどうぞ..."></textarea>
+          </div>
+
+          <div style="display:flex;gap:10px;align-items:center;margin-top:8px">
+            <button type="submit" class="btn">送信</button>
+            <button type="button" id="clearBtn" class="btn secondary">フォームをリセット</button>
+            <div class="muted tiny" style="margin-left:auto">回答数：<strong id="count">0</strong></div>
+          </div>
+        </form>
+
+        <footer>
+          <div class="tiny">このフォームはデモ用です。個人情報はローカルに保存されます。</div>
+        </footer>
+      </div>
+
+      <!-- 結果表示（モバイルでは下に） -->
+      <div style="height:20px"></div>
+      <div class="card" id="resultsCard">
+        <h3 style="margin-top:0;margin-bottom:8px">集計結果プレビュー</h3>
+        <div class="result-list" id="resultsList">
+          <div class="muted">まだ回答がありません。</div>
+        </div>
+        <div style="height:12px"></div>
+        <div class="chart" id="chartArea" aria-hidden>
+          <!-- simple bar chart drawn by JS -->
+        </div>
+        <div style="display:flex;gap:8px;margin-top:12px">
+          <button id="exportCsv" class="btn secondary">CSVでダウンロード</button>
+          <button id="exportJson" class="btn secondary">JSONでダウンロード</button>
+        </div>
+      </div>
+    </section>
+
+    <aside class="sidebar">
+      <div class="card">
+        <h4 style="margin:0 0 8px 0">サマリー</h4>
+        <div class="muted small">使い方：フォームに入力して送信してください。送信後はローカルに保存され、右側で集計が見られます。</div>
+        <div style="height:12px"></div>
+        <div class="small muted">機能一覧</div>
+        <ul class="tiny muted">
+          <li>ローカル保存（localStorage）</li>
+          <li>CSV / JSONでエクスポート</li>
+          <li>リアルタイムの簡易グラフ</li>
+          <li>レスポンシブ（スマホ対応）</li>
+        </ul>
+        <div style="height:10px"></div>
+        <div style="display:flex;gap:8px;margin-top:8px">
+          <button id="resetAll" class="btn secondary">全データ削除</button>
+        </div>
+      </div>
+
+      <div style="height:12px"></div>
+      <div class="card tiny muted">
+        <div>デザインは黒（ダーク）を基調。必要なら色・項目・保存先（サーバ送信）に変更可能です。</div>
+      </div>
+    </aside>
+  </main>
+
+  <script>
+    // シンプルなアンケートのフロントロジック（localStorageベース）
+    const STORAGE_KEY = 'ideal_survey_answers_v1';
+    const form = document.getElementById('surveyForm');
+    const resultsList = document.getElementById('resultsList');
+    const chartArea = document.getElementById('chartArea');
+    const countEl = document.getElementById('count');
+    const progBar = document.getElementById('progBar');
+
+    function loadAnswers(){
+      const raw = localStorage.getItem(STORAGE_KEY);
+      return raw ? JSON.parse(raw) : [];
+    }
+    function saveAnswers(arr){
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(arr));
+    }
+
+    function updateUI(){
+      const answers = loadAnswers();
+      countEl.textContent = answers.length;
+
+      if(!answers.length){
+        resultsList.innerHTML = '<div class="muted">まだ回答がありません。</div>';
+        drawChart([]);
+        return;
+      }
+
+      // List preview (最新5件)
+      const recent = answers.slice(-5).reverse();
+      resultsList.innerHTML = recent.map(a => {
+        const when = new Date(a._ts).toLocaleString();
+        return `<div class="result-item"><div><strong>${escapeHtml(a.name||'匿名')}</strong><div class="tiny muted">${when}</div></div><div class="muted">満足度: ${a.satisfaction||'未選択'}</div></div>`;
+      }).join('');
+
+      // Prepare aggregated data for chart
+      const counts = [0,0,0,0,0];
+      answers.forEach(a=>{
+        const v = parseInt(a.satisfaction);
+        if(v>=1 && v<=5) counts[5-v]++; // reverse order so left is high
+      });
+      drawChart(counts);
+    }
+
+    function drawChart(counts){
+      // counts expected length 5, left=5 right=1
+      chartArea.innerHTML = '';
+      const max = Math.max(...counts,1);
+      const wrapper = document.createElement('div');
+      wrapper.className = 'bar-wrap';
+      for(let i=0;i<5;i++){
+        const bar = document.createElement('div');
+        bar.className = 'bar';
+        const h = counts[i] / max * 100;
+        bar.style.height = h + '%';
+        bar.style.background = 'linear-gradient(180deg, rgba(124,252,0,0.14), rgba(124,252,0,0.03))';
+        bar.textContent = counts[i];
+        wrapper.appendChild(bar);
+      }
+      chartArea.appendChild(wrapper);
+    }
+
+    function escapeHtml(s){
+      return String(s).replace(/[&<>"']/g, function(m){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;','\'":"&apos;'}[m]||m});
+    }
+
+    form.addEventListener('submit', e=>{
+      e.preventDefault();
+      const formData = new FormData(form);
+      const entry = {
+        name: formData.get('name') || '',
+        email: formData.get('email') || '',
+        age: formData.get('age') || '',
+        satisfaction: formData.get('satisfaction') || '',
+        features: formData.getAll('features'),
+        comment: formData.get('comment') || '',
+        _ts: Date.now()
+      };
+
+      const arr = loadAnswers();
+      arr.push(entry);
+      saveAnswers(arr);
+
+      // small animation: progress bar fill briefly
+      progBar.style.width = '0%';
+      setTimeout(()=> progBar.style.width = '100%', 50);
+      setTimeout(()=> progBar.style.width = '0%', 900);
+
+      form.reset();
+      updateUI();
+
+      // optional: brief flash to show success
+      const old = document.activeElement;
+      alert('回答ありがとうございました！');
+      if(old) old.blur();
+    });
+
+    document.getElementById('clearBtn').addEventListener('click', ()=>{
+      if(confirm('フォームをリセットしますか？')) form.reset();
+    });
+
+    // export CSV
+    function toCsv(arr){
+      if(!arr.length) return '';
+      const keys = ['_ts','name','email','age','satisfaction','features','comment'];
+      const rows = [keys.join(',')];
+      arr.forEach(a=>{
+        const vals = keys.map(k=>{
+          let v = a[k];
+          if(Array.isArray(v)) v = v.join('|');
+          if(v===undefined || v===null) v = '';
+          // escape
+          v = String(v).replace(/"/g,'""');
+          if(v.indexOf(',')>=0 || v.indexOf('\n')>=0) v = '"'+v+'"';
+          return v;
+        });
+        rows.push(vals.join(','));
+      });
+      return rows.join('\n');
+    }
+
+    document.getElementById('exportCsv').addEventListener('click', ()=>{
+      const arr = loadAnswers();
+      if(!arr.length){ alert('エクスポートするデータがありません'); return; }
+      const csv = toCsv(arr);
+      const blob = new Blob([csv],{type:'text/csv'});
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url; a.download = 'survey_answers.csv';
+      a.click(); URL.revokeObjectURL(url);
+    });
+
+    document.getElementById('exportJson').addEventListener('click', ()=>{
+      const arr = loadAnswers();
+      if(!arr.length){ alert('エクスポートするデータがありません'); return; }
+      const blob = new Blob([JSON.stringify(arr,null,2)],{type:'application/json'});
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url; a.download = 'survey_answers.json';
+      a.click(); URL.revokeObjectURL(url);
+    });
+
+    // reset all data
+    document.getElementById('resetAll').addEventListener('click', ()=>{
+      if(confirm('ローカルに保存したすべての回答を削除します。よろしいですか？')){
+        localStorage.removeItem(STORAGE_KEY);
+        updateUI();
+      }
+    });
+
+    // Initialize
+    progBar.style.width = '0%';
+    updateUI();
+  </script>
+</body>
+</html>
